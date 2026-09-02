@@ -33,9 +33,9 @@
 
 | 저장소 | Environment | Secret | Variable |
 | --- | --- | --- | --- |
-| `Team2_BE` | `pullit-backend-production` | DB/Rabbit/JWT/Kakao/Gemini/MinIO app credential/MinIO root credential/Sentry, deploy SSH key, Cloudflare Access id/secret | DB username/name, Rabbit user, S3 bucket/region, deploy host/known-hosts |
-| `Team2_FE` | `pullit-frontend-production` | deploy SSH key, Cloudflare Access id/secret | `VITE_SENTRY_DSN`, deploy host/known-hosts |
-| `pullit-docs-server` | `pullit-docs-production` | docs DB password, deploy SSH key, Cloudflare Access id/secret | deploy host/known-hosts |
+| `pullit-portfolio-backend` | `pullit-portfolio-backend-production` | DB/Rabbit/JWT/Kakao/Gemini/MinIO app credential/MinIO root credential/Sentry, deploy SSH key, Cloudflare Access id/secret | DB username/name, Rabbit user, S3 bucket/region, deploy host/known-hosts |
+| `pullit-portfolio-frontend` | `pullit-portfolio-frontend-production` | deploy SSH key, Cloudflare Access id/secret | `VITE_SENTRY_DSN`, deploy host/known-hosts |
+| `pullit-portfolio-docs` | `pullit-portfolio-docs-production` | docs DB password, deploy SSH key, Cloudflare Access id/secret | deploy host/known-hosts |
 
 `VITE_*`는 browser public configuration이므로 비밀값을 넣지 않는다. `SENTRY_DSN`은 값이 비어도 backend deploy에 영향이 없지만, 다른 실행 비밀은 모두 empty fail-fast 대상이다.
 
@@ -50,7 +50,7 @@
 ## 실행 전 검사와 순서
 
 1. 각 배포 workflow의 `operation=preflight`를 한 번 실행한다. 이 job은 Cloudflare HTTP 200, SSH host key, 제한 계정, 허용 sudo command만 검사하며 Pi에 쓰지 않는다.
-2. 세 preflight가 모두 성공한 뒤 backend → frontend → docs 순으로 `operation=deploy`를 각 한 번 실행한다.
+2. dispatcher가 source-controlled revision으로 설치된 뒤, docs → backend/worker → frontend 순으로 `operation=deploy`를 각 한 번 실행한다. 이미 같은 revision이 성공했다면 재실행하지 않는다.
 3. Pi에서 Pull-it 컨테이너 health, `yeon-edge` alias, 기존 Yeon 컨테이너 목록이 그대로인지를 확인한다.
 4. Pull-it 서비스가 모두 healthy인 경우에만 Yeon edge proxy의 `/pull-it` route를 merge·배포한다. 이 단계 전에는 외부 공개 라우팅을 켜지 않는다.
 
