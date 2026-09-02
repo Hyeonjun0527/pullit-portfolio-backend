@@ -16,4 +16,4 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           set -euo pipefail
-          printf '%s\n' "$PR_TITLE" | grep -Eq '^(feat|fix|docs|chore|refactor|ci|test)(\([^)]+\))?: .+'
+          printf '%s\n' "$PR_TITLE" | grep -Eq '^(feat|fix|docs|chore|refactor|ci|test|hotfix)(\([^)]+\))?: .+'
