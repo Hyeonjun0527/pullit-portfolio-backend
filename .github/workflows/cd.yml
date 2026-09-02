@@ -10,7 +10,7 @@ on:
         type: choice
         options: [preflight, deploy]
   push:
-    branches: [develop]
+    branches: [main]
     paths:
       - src/**
       - gradle/**
@@ -58,7 +58,7 @@ jobs:
     if: always() && (github.event_name == 'workflow_dispatch' && inputs.operation == 'preflight' || needs.verify.result == 'success')
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    environment: pullit-backend-production
+    environment: pullit-portfolio-backend-production
     steps:
       - uses: actions/checkout@v5
         with:
@@ -133,7 +133,7 @@ jobs:
           context: .
           push: true
           platforms: linux/arm64
-          tags: ghcr.io/hyeonjun0527/pullit-backend:${{ github.sha }}
+          tags: ghcr.io/hyeonjun0527/pullit-portfolio-backend:${{ github.sha }}
           labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
 
   deploy:
@@ -141,7 +141,7 @@ jobs:
     if: github.event_name == 'push' || inputs.operation == 'deploy'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    environment: pullit-backend-production
+    environment: pullit-portfolio-backend-production
     steps:
       - uses: actions/checkout@v5
         with:
@@ -149,7 +149,7 @@ jobs:
       - uses: ./.github/actions/install-cloudflared
       - name: Create isolated runtime environment and deploy it
         env:
-          PULLIT_BACKEND_IMAGE: ghcr.io/hyeonjun0527/pullit-backend:${{ github.sha }}
+          PULLIT_BACKEND_IMAGE: ghcr.io/hyeonjun0527/pullit-portfolio-backend:${{ github.sha }}
           DB_USERNAME: ${{ vars.PULLIT_DB_USERNAME }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DB_ROOT_PASSWORD: ${{ secrets.DB_ROOT_PASSWORD }}
