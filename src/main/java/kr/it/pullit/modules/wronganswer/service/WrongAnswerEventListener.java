@@ -1,0 +1,47 @@
+package kr.it.pullit.modules.wronganswer.service;
+
+import java.util.List;
+import kr.it.pullit.modules.questionset.event.MarkingCompletedEvent;
+import kr.it.pullit.modules.questionset.web.dto.response.MarkingResultDto;
+import kr.it.pullit.modules.wronganswer.api.WrongAnswerPublicApi;
+import lombok.RequiredArgsConstructor;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
+
+@Component
+@RequiredArgsConstructor
+public class WrongAnswerEventListener {
+
+  private final WrongAnswerPublicApi wrongAnswerPublicApi;
+
+  @EventListener
+  public void handleMarkingCompletedEvent(MarkingCompletedEvent event) {
+    if (event.results() == null || event.results().isEmpty()) {
+      return;
+    }
+
+    List<Long> targetQuestionIds =
+        event.results().stream()
+            .filter(result -> isTargetForWrongAnswerUpdate(result.isCorrect(), event.isReviewing()))
+            .map(MarkingResultDto::questionId)
+            .toList();
+
+    if (targetQuestionIds.isEmpty()) {
+      return;
+    }
+
+    processMarking(event.memberId(), targetQuestionIds, event.isReviewing());
+  }
+
+  private boolean isTargetForWrongAnswerUpdate(boolean isCorrect, boolean isReviewing) {
+    return isCorrect == isReviewing;
+  }
+
+  private void processMarking(Long memberId, List<Long> targetQuestionIds, boolean isReviewing) {
+    if (isReviewing) {
+      wrongAnswerPublicApi.markAsCorrectAnswers(memberId, targetQuestionIds);
+    } else {
+      wrongAnswerPublicApi.markAsWrongAnswers(memberId, targetQuestionIds);
+    }
+  }
+}

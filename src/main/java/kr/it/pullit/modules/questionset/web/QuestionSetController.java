@@ -1,0 +1,147 @@
+package kr.it.pullit.modules.questionset.web;
+
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import java.net.URI;
+import java.util.List;
+import kr.it.pullit.modules.auth.web.apidocs.AuthApiDocs;
+import kr.it.pullit.modules.questionset.api.QuestionSetPublicApi;
+import kr.it.pullit.modules.questionset.api.QuestionSetWithStatsFacade;
+import kr.it.pullit.modules.questionset.web.apidocs.CreateQuestionSetApiDocs;
+import kr.it.pullit.modules.questionset.web.apidocs.DeleteQuestionSetApiDocs;
+import kr.it.pullit.modules.questionset.web.apidocs.GetAllMyQuestionSetsApiDocs;
+import kr.it.pullit.modules.questionset.web.apidocs.GetMyQuestionSetsApiDocs;
+import kr.it.pullit.modules.questionset.web.apidocs.GetQuestionSetByIdApiDocs;
+import kr.it.pullit.modules.questionset.web.apidocs.UpdateQuestionSetApiDocs;
+import kr.it.pullit.modules.questionset.web.dto.request.QuestionSetCreateRequestDto;
+import kr.it.pullit.modules.questionset.web.dto.request.QuestionSetUpdateRequestDto;
+import kr.it.pullit.modules.questionset.web.dto.response.MyQuestionSetsResponse;
+import kr.it.pullit.modules.questionset.web.dto.response.MyQuestionSetsWithStatsResponse;
+import kr.it.pullit.modules.questionset.web.dto.response.QuestionSetResponse;
+import kr.it.pullit.shared.idempotency.Idempotent;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+
+@Tag(name = "Question Set API", description = "문제집 관리 API")
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/api/question-set")
+@AuthApiDocs
+public class QuestionSetController {
+
+  private final QuestionSetPublicApi questionSetPublicApi;
+  private final QuestionSetWithStatsFacade questionSetWithStatsFacade;
+
+  /**
+   * 문제집의 모든 문제를 조회하는 API
+   *
+   * @param memberId 회원 ID
+   * @param id 문제집 ID
+   * @param isReviewing 오답노트 복습 모드 여부 (true: 오답노트 복습 모드, false: 오답노트 복습 모드 아님)
+   * @return 문제집 응답
+   */
+  @GetMapping("/{id}")
+  @GetQuestionSetByIdApiDocs
+  public ResponseEntity<QuestionSetResponse> getQuestionSetById(
+      @AuthenticationPrincipal Long memberId,
+      @PathVariable Long id,
+      @RequestParam(defaultValue = "false") Boolean isReviewing) {
+    QuestionSetResponse questionSetResponse =
+        questionSetPublicApi.getQuestionSetForSolving(id, memberId, isReviewing);
+    return ResponseEntity.ok(questionSetResponse);
+  }
+
+  /**
+   * 회원의 모든 문제집을 조회하는 API
+   *
+   * @param memberId 회원 ID
+   * @return 회원의 모든 문제집 목록
+   */
+  @GetMapping
+  @GetMyQuestionSetsApiDocs
+  public ResponseEntity<MyQuestionSetsWithStatsResponse> getMyQuestionSets(
+      @AuthenticationPrincipal Long memberId,
+      @RequestParam(required = false) Long cursor,
+      @RequestParam(defaultValue = "10") int size,
+      @RequestParam(required = false) Long folderId) {
+    return ResponseEntity.ok(
+        questionSetWithStatsFacade.getMemberQuestionSetsWithProgress(
+            memberId, cursor, size, folderId));
+  }
+
+  @GetMapping("/all")
+  @GetAllMyQuestionSetsApiDocs
+  public ResponseEntity<List<MyQuestionSetsResponse>> getAllMyQuestionSets(
+      @AuthenticationPrincipal Long memberId) {
+    return ResponseEntity.ok(questionSetPublicApi.getMemberQuestionSets(memberId));
+  }
+
+  /**
+   * 문제집을 생성하는 API
+   *
+   * @param memberId 회원 ID
+   * @param questionSetCreateRequestDto 문제집 생성 요청
+   * @return 문제집 생성 응답
+   */
+  @PostMapping
+  @Idempotent
+  @CreateQuestionSetApiDocs
+  public ResponseEntity<Void> createQuestionSet(
+      @AuthenticationPrincipal Long memberId,
+      @Valid @RequestBody QuestionSetCreateRequestDto questionSetCreateRequestDto) {
+    QuestionSetResponse questionSetResponse =
+        questionSetPublicApi.create(questionSetCreateRequestDto, memberId);
+
+    URI location =
+        ServletUriComponentsBuilder.fromCurrentRequest()
+            .path("/{id}")
+            .buildAndExpand(questionSetResponse.getId())
+            .toUri();
+
+    return ResponseEntity.created(location).build();
+  }
+
+  /**
+   * 문제집을 수정하는 API (제목, 폴더 등)
+   *
+   * @param memberId 회원 ID
+   * @param id 문제집 ID
+   * @param request 문제집 수정 요청
+   * @return 200 OK
+   */
+  @PatchMapping("/{id}")
+  @UpdateQuestionSetApiDocs
+  public ResponseEntity<Void> updateQuestionSet(
+      @AuthenticationPrincipal Long memberId,
+      @PathVariable Long id,
+      @Valid @RequestBody QuestionSetUpdateRequestDto request) {
+    questionSetPublicApi.update(id, request, memberId);
+    return ResponseEntity.ok().build();
+  }
+
+  /**
+   * 문제집을 삭제하는 API
+   *
+   * @param memberId 회원 ID
+   * @param id 문제집 ID
+   * @return 문제집 삭제 응답
+   */
+  @DeleteMapping("/{id}")
+  @DeleteQuestionSetApiDocs
+  public ResponseEntity<Void> deleteQuestionSet(
+      @AuthenticationPrincipal Long memberId, @PathVariable Long id) {
+    questionSetPublicApi.delete(id, memberId);
+    return ResponseEntity.ok().build();
+  }
+}

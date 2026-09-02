@@ -1,0 +1,108 @@
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: update  # QA 환경에서는 데이터를 보존하기 위함.
+    show-sql: false
+
+  sql:
+    init:
+      mode: never # QA 환경에서는 data.sql을 실행하지 않도록 설정
+
+  # QA 환경에서는 DevTools 비활성화
+  devtools:
+    restart:
+      enabled: false
+    livereload:
+      enabled: false
+
+  security:
+    oauth2:
+      client:
+        registration:
+          kakao:
+            redirect-uri: "${KAKAO_REDIRECT_URI:https://qa.api.pull.it.kr/login/oauth2/code/{registrationId}}"
+
+server:
+  error:
+    whitelabel:
+      enabled: false
+    include-exception: false
+    include-stacktrace: never
+    include-message: never
+  forward-headers-strategy: framework
+
+springdoc:
+  swagger-ui:
+    enabled: false
+
+info:
+  app:
+    name: Pullit QA
+    description: Pullit 스터디 플랫폼 QA 테스트 환경
+
+
+logging:
+  level:
+    root: INFO
+    org.springframework.security: DEBUG
+    org.springframework.security.oauth2: DEBUG
+    org.springframework.security.oauth2.client: DEBUG
+    org.springframework.security.oauth2.client.endpoint: DEBUG
+    org.springframework.security.web.authentication: DEBUG
+    OAuth2Failure: DEBUG
+    kr.it.pullit: DEBUG
+  # QA 로그 파일 설정
+  # file:
+  #   name: logs/pullit-qa.log
+
+management:
+  endpoints:
+    web:
+      # QA 환경에서는 액추에이터 엔드포인트 노출 최소화
+      exposure:
+        include: "health,info,metrics,prometheus,scheduledtasks"
+      base-path: "/actuator"
+  endpoint:
+    health:
+      show-details: always
+#    env:
+#      show-values: ALWAYS
+#    configprops:
+#      show-values: ALWAYS
+
+# Rate Limiting 설정 (Resilience4j) - QA 환경에만 적용
+# resilience4j:
+#   ratelimiter:
+#     instances:
+#       default:
+#         limitForPeriod: 2500 # 기간 내 허용 요청 수
+#         limitRefreshPeriod: 1m # 기간 (1분)
+#         timeoutDuration: 0 # 대기 시간 없음 (즉시 실패)
+#         registerHealthIndicator: true
+
+cors:
+  allowed-origins:
+    - "https://localhost:5173"
+    - "https://portfolio.yeon.world"
+    - "https://pullit-docs-server.vercel.app"
+
+# 나머지 외부 연동 설정(S3, Google, Kakao 키 등)은 application.yml의 정의를 상속
+
+sentry:
+  dsn: ${SENTRY_DSN}
+  # Add data like request headers and IP for users,
+  # see https://docs.sentry.io/platforms/java/guides/spring-boot/data-management/data-collected/ for more info
+  send-default-pii: false
+
+app:
+  oauth2:
+  authorized-redirect-uri: ${PULLIT_OAUTH2_REDIRECT_URI:https://portfolio.yeon.world/pull-it/login-success}

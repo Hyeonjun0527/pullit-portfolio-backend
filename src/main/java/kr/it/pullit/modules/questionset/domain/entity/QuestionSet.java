@@ -1,0 +1,215 @@
+package kr.it.pullit.modules.questionset.domain.entity;
+
+import static kr.it.pullit.modules.questionset.domain.QuestionSetConstants.TITLE_MAX_LENGTH;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Version;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import kr.it.pullit.modules.commonfolder.domain.entity.CommonFolder;
+import kr.it.pullit.modules.learningsource.source.domain.entity.Source;
+import kr.it.pullit.modules.learningsource.source.exception.SourceNotFoundException;
+import kr.it.pullit.modules.questionset.domain.dto.QuestionSetCreateParam;
+import kr.it.pullit.modules.questionset.enums.DifficultyType;
+import kr.it.pullit.modules.questionset.enums.LearningStatus;
+import kr.it.pullit.modules.questionset.enums.QuestionSetStatus;
+import kr.it.pullit.modules.questionset.enums.QuestionType;
+import kr.it.pullit.shared.jpa.BaseEntity;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
+
+@Entity
+@Getter
+@NoArgsConstructor
+@SQLDelete(
+    sql = "UPDATE question_set SET deleted_at = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+@SQLRestriction("deleted_at IS NULL")
+public class QuestionSet extends BaseEntity {
+
+  public static final int MAX_RETRY_COUNT = 3;
+
+  @OneToMany(mappedBy = "questionSet", cascade = CascadeType.ALL, orphanRemoval = true)
+  private List<Question> questions = new ArrayList<>();
+
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
+
+  @Version
+  @Column(nullable = false)
+  private Long version;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "common_folder_id")
+  private CommonFolder commonFolder;
+
+  @Column(name = "owner_id", nullable = false)
+  private Long ownerId;
+
+  @ManyToMany
+  @JoinTable(
+      name = "question_set_source",
+      joinColumns = @JoinColumn(name = "question_set_id"),
+      inverseJoinColumns = @JoinColumn(name = "source_id"))
+  @BatchSize(size = 100)
+  private Set<Source> sources = new HashSet<>();
+
+  // TODO: 리팩토링 대상 타이틀 정책이 빈약함.
+  @Column(length = TITLE_MAX_LENGTH + 100)
+  private String title;
+
+  @Enumerated(EnumType.STRING)
+  private DifficultyType difficulty;
+
+  @Enumerated(EnumType.STRING)
+  private QuestionType type;
+
+  /* 문제 수 */
+  @Setter private Integer questionLength;
+
+  @Enumerated(EnumType.STRING)
+  private QuestionSetStatus status;
+
+  @Enumerated(EnumType.STRING)
+  private LearningStatus learningStatus;
+
+  private LocalDateTime deletedAt;
+
+  private int retryCount;
+
+  @Builder
+  public QuestionSet(
+      Long ownerId,
+      Set<Source> sources,
+      String title,
+      DifficultyType difficulty,
+      QuestionType type,
+      Integer questionLength) {
+    this.ownerId = ownerId;
+    this.sources = sources != null ? sources : new HashSet<>();
+    this.title = title;
+    this.difficulty = difficulty;
+    this.type = type;
+    this.questionLength = questionLength;
+    this.status = QuestionSetStatus.PENDING;
+    this.learningStatus = LearningStatus.NOT_STARTED;
+    this.retryCount = 0;
+  }
+
+  public static QuestionSet create(
+      Long ownerId, List<Source> sources, QuestionSetCreateParam param) {
+    validateSources(sources);
+
+    String title = sources.getFirst().getOriginalName();
+    Set<Source> sourceSet = new HashSet<>(sources);
+
+    return QuestionSet.builder()
+        .ownerId(ownerId)
+        .sources(sourceSet)
+        .title(title)
+        .difficulty(param.difficulty())
+        .type(param.type())
+        .questionLength(param.questionCount())
+        .build();
+  }
+
+  public void updateLearningStatus(long solvedCount) {
+    if (this.questionLength == null || this.questionLength == 0) {
+      this.learningStatus = LearningStatus.NOT_STARTED;
+      return;
+    }
+
+    if (solvedCount == 0) {
+      this.learningStatus = LearningStatus.NOT_STARTED;
+    } else if (solvedCount < this.questionLength) {
+      this.learningStatus = LearningStatus.IN_PROGRESS;
+    } else {
+      this.learningStatus = LearningStatus.COMPLETED;
+    }
+  }
+
+  private static void validateSources(List<Source> sources) {
+    if (sources == null || sources.isEmpty()) {
+      throw SourceNotFoundException.withMessage("소스가 존재하지 않습니다.");
+    }
+  }
+
+  public void addQuestion(Question question) {
+    questions.add(question);
+    question.setQuestionSet(this);
+  }
+
+  public void removeQuestion(Question question) {
+    questions.remove(question);
+    question.setQuestionSet(null);
+  }
+
+  public void addSource(Source source) {
+    sources.add(source);
+    source.getQuestionSets().add(this);
+  }
+
+  /**
+   * 정책상 문제집은 학습소스에 의해 생성되지만, 학습소스가 삭제되더라도 문제집은 유지되어야 함
+   *
+   * @param source 삭제할 학습소스
+   */
+  public void removeSource(Source source) {
+    sources.remove(source);
+    source.getQuestionSets().remove(this);
+  }
+
+  public void assignToFolder(CommonFolder commonFolder) {
+    this.commonFolder = commonFolder;
+  }
+
+  public void completeProcessing() {
+    this.status = QuestionSetStatus.COMPLETE;
+  }
+
+  public void failProcessing() {
+    this.status = QuestionSetStatus.FAILED;
+  }
+
+  public void markAsUnprocessable() {
+    this.status = QuestionSetStatus.UNPROCESSABLE;
+  }
+
+  public void updateTitle(String title) {
+    this.title = title;
+  }
+
+  public void softDelete() {
+    this.deletedAt = LocalDateTime.now();
+  }
+
+  public void retry() {
+    this.status = QuestionSetStatus.PENDING;
+    this.retryCount++;
+  }
+
+  public boolean hasExhaustedRetries() {
+    return this.retryCount >= MAX_RETRY_COUNT;
+  }
+}
