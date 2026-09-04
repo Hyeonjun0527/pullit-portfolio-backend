@@ -6,6 +6,7 @@ import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OrderColumn;
 import java.util.List;
 import kr.it.pullit.modules.questionset.client.dto.response.LlmGeneratedQuestionResponse;
 import kr.it.pullit.modules.questionset.domain.dto.QuestionUpdateParam;
@@ -25,6 +26,7 @@ public class MultipleChoiceQuestion extends Question {
 
   @ElementCollection
   @CollectionTable(name = "question_options", joinColumns = @JoinColumn(name = "question_id"))
+  @OrderColumn(name = "option_position")
   @Column(name = "option_text")
   private List<String> options;
 

@@ -10,6 +10,8 @@ import kr.it.pullit.modules.questionset.domain.entity.Question;
 import kr.it.pullit.modules.questionset.domain.entity.QuestionGenerationRequest;
 import kr.it.pullit.modules.questionset.domain.entity.QuestionGenerationSpecification;
 import kr.it.pullit.modules.questionset.domain.entity.QuestionSet;
+import kr.it.pullit.modules.questionset.enums.QuestionType;
+import kr.it.pullit.modules.questionset.service.MultipleChoiceAnswerPositionBalancer;
 import kr.it.pullit.modules.questionset.service.SourceValidator;
 import kr.it.pullit.modules.questionset.service.creationstrategy.QuestionCreationStrategyFactory;
 import kr.it.pullit.modules.questionset.web.dto.request.QuestionSetUpdateRequestDto;
@@ -32,6 +34,7 @@ public class QuestionGenerationWorker {
   private final QuestionSetPublicApi questionSetPublicApi;
   private final SourceValidator sourceValidator;
   private final QuestionCreationStrategyFactory questionCreationStrategyFactory;
+  private final MultipleChoiceAnswerPositionBalancer answerPositionBalancer;
   private final QuestionGenerationFailureHandler failureHandler;
 
   @RabbitListener(queues = RabbitMqConfig.QUEUE_NAME)
@@ -89,7 +92,16 @@ public class QuestionGenerationWorker {
   private void saveQuestions(
       Long questionSetId, Long memberId, List<LlmGeneratedQuestionResponse> questionDtos) {
     QuestionSet questionSet = findQuestionSetById(questionSetId, memberId);
-    questionDtos.forEach(dto -> saveSingleQuestion(questionSet, dto));
+    prepareForPersistence(questionSet, questionDtos)
+        .forEach(dto -> saveSingleQuestion(questionSet, dto));
+  }
+
+  private List<LlmGeneratedQuestionResponse> prepareForPersistence(
+      QuestionSet questionSet, List<LlmGeneratedQuestionResponse> questionDtos) {
+    if (questionSet.getType() != QuestionType.MULTIPLE_CHOICE) {
+      return questionDtos;
+    }
+    return answerPositionBalancer.balance(questionDtos, questionSet.getId());
   }
 
   private void saveSingleQuestion(
