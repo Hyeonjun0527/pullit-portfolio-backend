@@ -42,13 +42,12 @@ x-pullit-runtime: &pullit-runtime
 services:
   pullit-prod-app:
     <<: *pullit-runtime
+    ports:
+      - "10.77.0.40:18082:8080"
     environment:
       <<: *pullit-common-environment
       SPRING_PROFILES_ACTIVE: prod
-    networks:
-      pullit-prod:
-      yeon-edge:
-        aliases: [pullit-backend]
+    networks: [pullit-prod]
     healthcheck:
       test: [CMD, wget, --no-verbose, --tries=1, --spider, "http://localhost:8080/actuator/health"]
       interval: 30s
@@ -165,5 +164,3 @@ volumes:
 
 networks:
   pullit-prod: {name: pullit-portfolio-internal}
-  yeon-edge:
-    external: true
