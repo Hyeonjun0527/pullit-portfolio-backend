@@ -14,7 +14,6 @@ for volume in pullit-portfolio-db-data pullit-portfolio-redis-data pullit-portfo
   fi
 done
 cd "$APP_DIR"
-docker network inspect yeon-edge >/dev/null
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" config --quiet
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d pullit-prod-db pullit-prod-redis pullit-prod-rabbitmq pullit-prod-storage
 echo "새 Pull-it 전용 named volume을 생성했습니다. 기존 Yeon 데이터는 건드리지 않았습니다."
