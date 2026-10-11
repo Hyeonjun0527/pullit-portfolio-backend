@@ -15,7 +15,7 @@ import kr.it.pullit.modules.questionset.enums.QuestionType;
 
 public record GeminiRequest(String model, Content content, GenerateContentConfig config) {
 
-  private static final String DEFAULT_MODEL = "gemini-2.5-flash-lite";
+  private static final String DEFAULT_MODEL = "gemini-3.5-flash-lite";
 
   public static GeminiRequest from(
       LlmGeneratedQuestionRequest request, GeminiConfigBuilder configBuilder) {

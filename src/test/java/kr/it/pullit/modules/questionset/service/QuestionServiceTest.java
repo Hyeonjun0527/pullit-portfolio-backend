@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Optional;
 import kr.it.pullit.modules.learningsource.source.api.SourcePublicApi;
 import kr.it.pullit.modules.questionset.api.LlmClient;
+import kr.it.pullit.modules.questionset.client.GeminiProperties;
 import kr.it.pullit.modules.questionset.client.dto.request.LlmGeneratedQuestionRequest;
 import kr.it.pullit.modules.questionset.client.dto.response.LlmGeneratedQuestionSetResponse;
 import kr.it.pullit.modules.questionset.domain.entity.MultipleChoiceQuestion;
@@ -49,6 +50,7 @@ class QuestionServiceTest {
   @Mock private SourcePublicApi sourcePublicApi;
   @Mock private LlmClient llmClient;
   @Mock private QuestionSetFileTempManager questionSetFileTempManager;
+  @Mock private GeminiProperties geminiProperties;
 
   private QuestionService questionService;
 
@@ -60,6 +62,7 @@ class QuestionServiceTest {
             questionSetRepository,
             sourcePublicApi,
             llmClient,
+            geminiProperties,
             questionSetFileTempManager);
   }
 
@@ -89,6 +92,7 @@ class QuestionServiceTest {
           new LlmGeneratedQuestionSetResponse("제목", List.of());
       when(llmClient.getLlmGeneratedQuestionContent(any(LlmGeneratedQuestionRequest.class)))
           .thenReturn(expected);
+      when(geminiProperties.getModel()).thenReturn("configured-test-model");
 
       QuestionGenerationSpecification specification =
           new QuestionGenerationSpecification(DifficultyType.EASY, QuestionType.MULTIPLE_CHOICE, 3);
@@ -101,7 +105,7 @@ class QuestionServiceTest {
       ArgumentCaptor<LlmGeneratedQuestionRequest> captor =
           ArgumentCaptor.forClass(LlmGeneratedQuestionRequest.class);
       verify(llmClient).getLlmGeneratedQuestionContent(captor.capture());
-      assertThat(captor.getValue().model()).isEqualTo("gemini-2.5-flash-lite");
+      assertThat(captor.getValue().model()).isEqualTo("configured-test-model");
       assertThat(captor.getValue().specification()).isEqualTo(specification);
       assertThat(captor.getValue().fileDataList()).containsExactly(path1, path2);
 

@@ -15,4 +15,5 @@ import org.springframework.validation.annotation.Validated;
 public class GeminiProperties {
 
   @NotBlank private String apiKey;
+  @NotBlank private String model = "gemini-3.5-flash-lite";
 }

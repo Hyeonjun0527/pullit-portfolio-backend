@@ -9,6 +9,7 @@ import java.util.Optional;
 import kr.it.pullit.modules.learningsource.source.api.SourcePublicApi;
 import kr.it.pullit.modules.questionset.api.LlmClient;
 import kr.it.pullit.modules.questionset.api.QuestionPublicApi;
+import kr.it.pullit.modules.questionset.client.GeminiProperties;
 import kr.it.pullit.modules.questionset.client.dto.request.LlmGeneratedQuestionRequest;
 import kr.it.pullit.modules.questionset.client.dto.response.LlmGeneratedQuestionSetResponse;
 import kr.it.pullit.modules.questionset.domain.dto.QuestionUpdateParam;
@@ -36,12 +37,11 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class QuestionService implements QuestionPublicApi {
 
-  private static final String DEFAULT_MODEL_NAME = "gemini-2.5-flash-lite";
-
   private final QuestionRepository questionRepository;
   private final QuestionSetRepository questionSetRepository;
   private final SourcePublicApi sourcePublicApi;
   private final LlmClient llmClient;
+  private final GeminiProperties geminiProperties;
   private final QuestionSetFileTempManager questionSetFileTempManager;
 
   @Override
@@ -146,13 +146,13 @@ public class QuestionService implements QuestionPublicApi {
     log.info(
         "AI 문제 생성을 시작합니다. QuestionSet ID: {}, Model: {}",
         questionSetId,
-        QuestionService.DEFAULT_MODEL_NAME);
+        geminiProperties.getModel());
   }
 
   private LlmGeneratedQuestionRequest createLlmRequest(
       LlmPrompt llmPrompt, List<Path> sourceFilePaths, QuestionGenerationSpecification spec) {
     return new LlmGeneratedQuestionRequest(
-        llmPrompt.value(), sourceFilePaths, QuestionService.DEFAULT_MODEL_NAME, spec);
+        llmPrompt.value(), sourceFilePaths, geminiProperties.getModel(), spec);
   }
 
   private QuestionSet findQuestionSetById(Long questionSetId) {
