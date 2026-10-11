@@ -112,7 +112,7 @@ jobs:
           ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 "pullit-deploy@$DEPLOY_HOST" \
             'test -d /opt/pullit/incoming && test -w /opt/pullit/incoming && sudo -n -l /usr/local/sbin/pullit-deploy >/dev/null'
   build:
-    needs: [verify, transport-preflight]
+    needs: verify
     if: github.event_name == 'push' || inputs.operation == 'deploy'
     runs-on: ubuntu-latest
     timeout-minutes: 30
